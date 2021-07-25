@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <time.h>
 
 typedef enum {
     RED,
@@ -13,6 +14,8 @@ typedef struct node {
     struct node *right;
     struct node *parent;
 } RBnode, *RBtree;
+
+#define SIZE 20
 
 /*
 Root nodes must be black.
@@ -291,7 +294,10 @@ static RBnode* DeleteCope(RBtree *root, RBnode *p, int h) {
             else { //
                 coloring(bp, RED);
                 coloring(bp->left, BLACK);
+                bp = RightRotate(root, bp);
+                coloring(bp, fp->color);
                 coloring(fp, BLACK);
+                coloring(bp->right, BLACK);
                 LeftRotate(root, fp);
             }
         }
@@ -337,7 +343,10 @@ static RBnode* DeleteCope(RBtree *root, RBnode *p, int h) {
             else { //
                 coloring(bp, RED);
                 coloring(bp->right, BLACK);
+                bp = LeftRotate(root, bp);
+                coloring(bp, fp->color);
                 coloring(fp, BLACK);
+                coloring(bp->left, BLACK);
                 RightRotate(root, fp);
             }
         }
@@ -380,7 +389,7 @@ RBtree DeleteRBtree(RBtree *root, int val) {
     }
 
     RBnode *p = SubstituteNode(s); // substituted node
-    printf("== (%d)'s %d ==\n", val, p->val);
+    // printf("== (%d)'s %d ==\n", val, p->val);
 
     free(DeleteCope(root, p, 0));
 
@@ -415,7 +424,82 @@ void PrintRBtree(RBtree root) {
     PrintRBtreeInRank(root, 0);
 }
 
-int main(void) {
+/*
+检测红黑树的合法性
+主要检测一下方面：1. 红结点的孩子一定是黑结点 2. 从根结点到各null结点的路径上黑结点数量相等
+*/
+static int _check(RBtree root, int bn) {
+    if (root == NULL) {
+        return bn;
+    }
+    if (root->color == RED) {
+        if ((root->left != NULL && root->left->color == RED) || (root->right != NULL && root->right->color == RED)) {
+            return -1;
+        }
+    }
+    int _bn = bn + root->color==BLACK ? 1 : 0;
+    int l = _check(root->left, _bn);
+    int r = _check(root->right, _bn);
+    if (l == -1 || r == -1 || l != r) {
+        return -1;
+    }
+    else {
+        return l;
+    }
+}
+bool check(RBtree root) {
+    return _check(root, 0) >= 0;
+}
+
+void test(void) {
+    RBtree root;
+    ConstructRBtree(&root);
+
+    static bool rd = false;
+    if (rd == false) {
+        srand(time(NULL));
+        rd = true;
+    }
+
+    int values[SIZE] = {0};
+    int deletes[SIZE] = {0};
+    for (int i = 0; i < SIZE; ++i) {
+        values[i] = rand()%(SIZE*10-1)+1;
+        deletes[i] = values[i];
+        InsertRBtree(&root, values[i]);
+    }
+
+    for (int i = SIZE-1; i > 0; --i) {
+        int j = rand() % (i+1);
+        int t = deletes[i];
+        deletes[i] = deletes[j];
+        deletes[j] = t;
+    }
+
+    // PrintRBtree(root);
+
+    for (int i = 0; i < SIZE; ++i) {
+        DeleteRBtree(&root, deletes[i]);
+        // PrintRBtree(root);
+        if (check(root) == false) {
+            printf("===== error =====\n");
+            printf("insert list:\n");
+            for (int j = 0; j < SIZE; ++j) {
+                printf("%d ", values[j]);
+            }
+            printf("\ndelete list:\n");
+            for (int j = 0; j <= i; ++j) {
+                printf("%d ", deletes[j]);
+            }
+            printf("\n");
+            break;
+        }
+    }
+
+    DestoryRBtree(&root);
+}
+
+void demo() {
     RBtree root;
     ConstructRBtree(&root);
 
@@ -431,8 +515,17 @@ int main(void) {
             DeleteRBtree(&root, -n);
         }
         PrintRBtree(root);
+        if (check(root) == false) {
+            printf("===== error =====\n");
+            break;
+        }
     }
 
     DestoryRBtree(&root);
+}
+
+int main(void) {
+    // for (int i = 0; i < 10; ++i) test();
+    demo();
     return 0;
 }
