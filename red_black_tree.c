@@ -15,7 +15,7 @@ typedef struct node {
     struct node *parent;
 } RBnode, *RBtree;
 
-#define SIZE 20
+#define SIZE 50
 
 /*
 Root nodes must be black.
@@ -276,15 +276,6 @@ static RBnode* DeleteCope(RBtree *root, RBnode *p, int h) {
                     DeleteCope(root, fp, 1);
                 }
             }
-            else if (bp->right == NULL && isred(bp->left)) {
-                coloring(bp->left, BLACK);
-                coloring(bp, RED);
-                bp = RightRotate(root, bp);
-                coloring(bp, fp->color);
-                coloring(fp, BLACK);
-                coloring(bp->right, BLACK);
-                LeftRotate(root, fp);
-            }
             else if (isred(bp->right)) {
                 coloring(bp, fp->color);
                 coloring(fp, BLACK);
@@ -324,15 +315,6 @@ static RBnode* DeleteCope(RBtree *root, RBnode *p, int h) {
                     bp->color = RED;
                     DeleteCope(root, fp, 1);
                 }
-            }
-            else if (bp->left == NULL && isred(bp->right)) {
-                coloring(bp->right, BLACK);
-                coloring(bp, RED);
-                bp = LeftRotate(root, bp);
-                coloring(bp, fp->color);
-                coloring(fp, BLACK);
-                coloring(bp->left, BLACK);
-                RightRotate(root, fp);
             }
             else if (isred(bp->left)) {
                 coloring(bp, fp->color);
@@ -525,7 +507,7 @@ void demo() {
 }
 
 int main(void) {
-    // for (int i = 0; i < 10; ++i) test();
-    demo();
+    for (int i = 0; i < 100; ++i) test();
+    // demo();
     return 0;
 }
