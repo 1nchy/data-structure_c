@@ -1,6 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <time.h>
+
+#define SIZE 50
 
 typedef struct node {
     int val;
@@ -188,6 +191,44 @@ Avltree InsertAvltree(Avltree *root, int val) {
     }
     return *root;
 }
+
+static Avlnode* SubstituteNode(Avlnode *s) {
+    if (s->left == NULL && s->right == NULL) {
+        return s;
+    }
+    else if (s->left == NULL) {
+        // right sub tree's height can't be larger than 1
+        s->val = s->right->val;
+        return s->right;
+        // return SubstituteNode(s->right);
+    }
+    else if (s->right == NULL) {
+        s->val = s->left->val;
+        return s->left;
+    }
+    else if (s->bf == 1) {
+        Avlnode *p = s->left;
+        Avlnode *fp = s;
+        while (p != NULL) {
+            fp = p;
+            p = p->right;
+        }
+        // swap s and fp
+        s->val = fp->val;
+        return SubstituteNode(fp);
+    }
+    else {
+        Avlnode *p = s->right;
+        Avlnode *fp = s;
+        while (p != NULL) {
+            fp = p;
+            p = p->left;
+        }
+        // swap s and fp
+        s->val = fp->val;
+        return SubstituteNode(fp);
+    }
+}
 /*
 在根为 root 的平衡二叉树中删除元素 val
 成功后返回新平衡二叉树根节点,失败返回NULL
@@ -224,94 +265,32 @@ Avltree DeleteAvltree(Avltree *root, int val) {
      * 该结点有且只有一个孩子，则连接之后再删除结点
      * 该结点既有左孩子又有右孩子，则再分为以下几种情况
      *    该结点左子树高度大于右子树，让左子树的最右结点代替当前结点
-     *    该结点右子树高度大于左子树，让右子树的最右结点代替当前结点
+     *    该结点右子树高度大于左子树，让右子树的最左结点代替当前结点
      * 最后在层层回溯，逐层调整
     */
+    p = SubstituteNode(p);
     Avlnode *fp = p->parent;
-    fs = fp;
-    if (p->left == NULL && p->right == NULL) {
-        if (p == fp->left) {
-            fp->left = NULL;
-        }
-        else {
-            fp->right = NULL;
-        }
-        free(p);
-    }
-    else if (p->left == NULL) {
-        if (p == fp->left) {
-            fp->left = p->right;
-        }
-        else {
-            fp->right = p->right;
-        }
-        p->right->parent = fp;
-        free(p);
-    }
-    else if (p->right == NULL) {
-        if (p == fp->left) {
-            fp->left = p->left;
-        }
-        else {
-            fp->right = p->left;
-        }
-        p->left->parent = fp;
-        free(p);
+    if (p == fp->left) {
+        fp->left = NULL;
     }
     else {
-        if (p->bf > 0/*GetHeight(p->left) > GetHeight(p->right)*/) {
-            fs = p;
-            s = p->left;
-            while (s->right != NULL) {
-                fs = s;
-                s = s->right;
-            }
-            p->val = s->val;
-            if (s == fs->left) {
-                fs->left = s->left;
-            }
-            else {
-                fs->right = s->left;
-            }
-            if (s->left != NULL) {
-                s->left->parent = fs;
-            }
-            free(s);
-        }
-        else {
-            fs = p;
-            s = p->right;
-            while (s->left != NULL) {
-                fs = s;
-                s = s->left;
-            }
-            p->val = s->val;
-            if (s == fs->left) {
-                fs->left = s->right;
-            }
-            else {
-                fs->right = s->right;
-            }
-            if (s->right != NULL) {
-                s->right->parent = fs;
-            }
-            free(s);
-        }
+        fp->right = NULL;
     }
+    free(p);
     //此时fs为被删除结点的父结点
     //层层回溯修改结点高度
-    s = fs;
+    s = fp;
     while (s != NULL) {
         s->height = GetHeight(s);
         s->bf = GetHeight(s->left) - GetHeight(s->right);
         s = s->parent;
     }
     //层层回溯调整平衡
-    s = fs;
+    s = fp;
     while (s != NULL) {
-        if (s->bf == 2/*GetHeight(s->left) - GetHeight(s->right) == 2*/) {
+        if (s->bf == 2) { /*GetHeight(s->left) - GetHeight(s->right) == 2*/
             p = s->left;
-            if (p->bf >= 0/*GetHeight(p->left) >= GetHeight(p->right)*/) {
+            if (p->bf >= 0) { /*GetHeight(p->left) >= GetHeight(p->right)*/
                 s = RightRotate(root, s);
             }
             else {
@@ -319,9 +298,9 @@ Avltree DeleteAvltree(Avltree *root, int val) {
                 s = RightRotate(root, s);
             }
         }
-        else if (s->bf == -2/*GetHeight(s->left) - GetHeight(s->right) == -2*/) {
+        else if (s->bf == -2) { /*GetHeight(s->left) - GetHeight(s->right) == -2*/
             p = s->right;
-            if (p->bf <= 0/*GetHeight(p->right) >= GetHeight(p->left)*/) {
+            if (p->bf <= 0) { /*GetHeight(p->right) >= GetHeight(p->left)*/
                 s = LeftRotate(root, s);
             }
             else {
@@ -399,11 +378,12 @@ static void PrintAvltreeInRank(Avltree root, int height) {
     if (root == NULL) {
         return;
     }
-    for (int i = 0; i < height; i++) {
-        printf("    ");
-    }
-    printf("node: %2d (h%1d)\n", root->val, root->height);
+    printf("%*s", 4*height, "");
+    printf("node: (%d)\n", root->val);
     PrintAvltreeInRank(root->right, height+1);
+    if ((root->left == NULL) ^ (root->right == NULL)) {
+        printf("%*s--\n", 4*(height+1), "");
+    }
     PrintAvltreeInRank(root->left, height+1);
 }
 /*
@@ -411,18 +391,89 @@ static void PrintAvltreeInRank(Avltree root, int height) {
 root 是二叉树的根结点
 */
 void PrintAvltree(Avltree root) {
-    printf("#Avltree\n");
+    printf("# Avltree\n");
     PrintAvltreeInRank(root, 0);
 }
 
-int main(void) {
+
+// 合法则返回子树高度，否则返回-1
+static int check(Avltree root) {
+    if (root == NULL) {
+        return 0;
+    }
+    int l = check(root->left);
+    int r = check(root->right);
+    if (l == -1 || r == -1 || abs(l-r) > 1) {
+        return -1;
+    }
+    else {
+        return Max(l, r)+1;
+    }
+}
+
+void test(void) {
+    Avltree root;
+    ConstructAvltree(&root);
+
+    static bool rd = false;
+    if (rd == false) {
+        srand(time(NULL));
+        rd = true;
+    }
+
+    int values[SIZE] = {0};
+    int deletes[SIZE] = {0};
+    // printf("Insert list: ");
+    for (int i = 0; i < SIZE; ++i) {
+        values[i] = rand()%(SIZE*10-1)+1;
+        deletes[i] = values[i];
+        // printf("%d ", values[i]);
+        InsertAvltree(&root, values[i]);
+    }
+    // printf("\n");
+
+    for (int i = SIZE-1; i > 0; --i) {
+        int j = rand() % (i+1);
+        int t = deletes[i];
+        deletes[i] = deletes[j];
+        deletes[j] = t;
+    }
+
+    // PrintAvltree(root);
+    // printf("Delete list: ");
+    for (int i = 0; i < SIZE; ++i) {
+        // printf("%d ", deletes[i]);
+        // fflush(stdout);
+        DeleteAvltree(&root, deletes[i]);
+        // PrintAvltree(root);
+        if (check(root) < 0) {
+            printf("===== error =====\n");
+            printf("insert list:\n");
+            for (int j = 0; j < SIZE; ++j) {
+                printf("%d ", values[j]);
+            }
+            printf("\ndelete list:\n");
+            for (int j = 0; j <= i; ++j) {
+                printf("%d ", deletes[j]);
+            }
+            printf("\n");
+            break;
+        }
+    }
+    // printf("\n");
+
+    DestoryAvltree(&root);
+}
+
+void demo() {
     Avltree root;
     ConstructAvltree(&root);
 
     int n;
-    while (scanf("%d", &n) == -1) {
+    while (scanf("%d", &n) != -1) {
         if (n == 0) {
-            break;
+            // break;
+            PrintAvltree(root);
         }
         else if (n > 0) {
             InsertAvltree(&root, n);
@@ -430,9 +481,20 @@ int main(void) {
         else {
             DeleteAvltree(&root, -n);
         }
-        PrintAvltree(root);
+        // PrintAvltree(root);
+        if (check(root) == false) {
+            printf("===== error =====\n");
+            break;
+        }
     }
 
     DestoryAvltree(&root);
+}
+
+
+int main(void) {
+    for (int i = 0; i < 100; ++i) test();
+    // test();
+    // demo();
     return 0;
 }
