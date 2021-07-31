@@ -415,20 +415,46 @@ void test(void) {
     Avltree root;
     ConstructAvltree(&root);
 
-    static bool rd = false;
-    if (rd == false) {
+    static bool rinit = false;
+    if (rinit == false) {
         srand(time(NULL));
-        rd = true;
+        rinit = true;
     }
 
     int values[SIZE] = {0};
     int deletes[SIZE] = {0};
+    int randlist[SIZE*2] = {0};
     // printf("Insert list: ");
-    for (int i = 0; i < SIZE; ++i) {
+    for (int i = 0, j = 0; i < SIZE; ++i) {
         values[i] = rand()%(SIZE*10-1)+1;
         deletes[i] = values[i];
+        randlist[i+j] = values[i];
         // printf("%d ", values[i]);
         InsertAvltree(&root, values[i]);
+        if (check(root) < 0) {
+            printf("===== error =====\n");
+            printf("insert list:\n");
+            for (int k = 0; k <= i+j; ++k) {
+                printf("%d ", randlist[k]);
+            }
+            printf("\n");
+            break;
+        }
+        int rd = rand() % (3);
+        if (rd == 0) { // delete nodes randomly while inserting
+            rd = rand() % (i+1);
+            ++j;
+            randlist[i+j] = -values[rd];
+            DeleteAvltree(&root, values[rd]);
+            if (check(root) < 0) {
+                printf("===== error =====\n");
+                printf("insert list:\n");
+                for (int k = 0; k <= i+j; ++k) {
+                    printf("%d ", randlist[k]);
+                }
+                printf("\n");
+            }
+        }
     }
     // printf("\n");
 
@@ -449,7 +475,7 @@ void test(void) {
         if (check(root) < 0) {
             printf("===== error =====\n");
             printf("insert list:\n");
-            for (int j = 0; j < SIZE; ++j) {
+            for (int j = 0; j < SIZE*2; ++j) {
                 printf("%d ", values[j]);
             }
             printf("\ndelete list:\n");
@@ -460,6 +486,16 @@ void test(void) {
             break;
         }
     }
+    // printf("\n");
+
+    // printf("insert list:\n");
+    // for (int i = 0; i < SIZE*2; ++i) {
+    //     printf("%d ", randlist[i]);
+    // }
+    // printf("\ndelete list:\n");
+    // for (int i = 0; i < SIZE; ++i) {
+    //     printf("%d ", deletes[i]);
+    // }
     // printf("\n");
 
     DestoryAvltree(&root);
@@ -482,7 +518,7 @@ void demo() {
             DeleteAvltree(&root, -n);
         }
         // PrintAvltree(root);
-        if (check(root) == false) {
+        if (check(root) < 0) {
             printf("===== error =====\n");
             break;
         }

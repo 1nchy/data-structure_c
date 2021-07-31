@@ -429,26 +429,53 @@ static int _check(RBtree root, int bn) {
         return l;
     }
 }
-bool check(RBtree root) {
-    return _check(root, 0) >= 0;
+int check(RBtree root) {
+    return _check(root, 0);
 }
 
 void test(void) {
     RBtree root;
     ConstructRBtree(&root);
 
-    static bool rd = false;
-    if (rd == false) {
+    static bool rinit = false;
+    if (rinit == false) {
         srand(time(NULL));
-        rd = true;
+        rinit = true;
     }
 
     int values[SIZE] = {0};
+    int randlist[SIZE*2] = {0};
     int deletes[SIZE] = {0};
-    for (int i = 0; i < SIZE; ++i) {
+    for (int i = 0, j = 0; i < SIZE; ++i) {
         values[i] = rand()%(SIZE*10-1)+1;
         deletes[i] = values[i];
+        randlist[i+j] = values[i];
         InsertRBtree(&root, values[i]);
+        if (check(root) < 0) {
+            printf("===== error =====\n");
+            printf("insert list:\n");
+            for (int k = 0; k <= i+j; ++k) {
+                printf("%d ", randlist[k]);
+            }
+            printf("\n");
+            break;
+        }
+        int rd = rand() % (3);
+        if (rd == 0) { // delete nodes randomly while inserting
+            rd = rand() % (i+1);
+            ++j;
+            randlist[i+j] = -values[rd];
+            DeleteRBtree(&root, values[rd]);
+            if (check(root) < 0) {
+                printf("===== error =====\n");
+                printf("insert list:\n");
+                for (int k = 0; k <= i+j; ++k) {
+                    printf("%d ", randlist[k]);
+                }
+                printf("\n");
+            }
+        }
+
     }
 
     for (int i = SIZE-1; i > 0; --i) {
@@ -463,11 +490,11 @@ void test(void) {
     for (int i = 0; i < SIZE; ++i) {
         DeleteRBtree(&root, deletes[i]);
         // PrintRBtree(root);
-        if (check(root) == false) {
+        if (check(root) < 0) {
             printf("===== error =====\n");
             printf("insert list:\n");
-            for (int j = 0; j < SIZE; ++j) {
-                printf("%d ", values[j]);
+            for (int j = 0; j < SIZE*2; ++j) {
+                printf("%d ", randlist[j]);
             }
             printf("\ndelete list:\n");
             for (int j = 0; j <= i; ++j) {
@@ -477,6 +504,16 @@ void test(void) {
             break;
         }
     }
+
+    // printf("insert list:\n");
+    // for (int i = 0; i < SIZE*2; ++i) {
+    //     printf("%d ", randlist[i]);
+    // }
+    // printf("\ndelete list:\n");
+    // for (int i = 0; i < SIZE; ++i) {
+    //     printf("%d ", deletes[i]);
+    // }
+    // printf("\n");
 
     DestoryRBtree(&root);
 }
@@ -497,7 +534,7 @@ void demo() {
             DeleteRBtree(&root, -n);
         }
         PrintRBtree(root);
-        if (check(root) == false) {
+        if (check(root) < 0) {
             printf("===== error =====\n");
             break;
         }
