@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <string.h>
 #include <time.h>
 // #include <math.h>
 
@@ -22,21 +23,21 @@
 typedef int KeyType;
 
 //数组 key 与 children 定义长度为MAX_DEGREE+1是为了方便分裂操作
-typedef struct MBtnode {
+typedef struct MBnode {
     int keynum;  
     KeyType key[MAX_DEGREE+1]; // key[0]不存储数据
-    struct MBtnode *parent;
-    struct MBtnode *children[MAX_DEGREE+1];
-} MBtnode, *MBtree;
+    struct MBnode *parent;
+    struct MBnode *children[MAX_DEGREE+1];
+} MBnode, *MBtree;
 
 
 void ConstructMBtree(MBtree *root) {
     *root = NULL;
 }
 //在 mbt 指向的结点中, 寻找并返回小于等于 key 的最大关键字序号
-static int _Search(MBtnode *mbt, KeyType key) {
+static int _Search(MBnode *mbt, KeyType key) {
     int i = 1;
-    while (i<=mbt->keynum && mbt->key[i]<=key) i++;
+    while (i<=mbt->keynum && mbt->key[i]<=key) ++i;
     return i-1;
 }
 /*
@@ -44,8 +45,8 @@ static int _Search(MBtnode *mbt, KeyType key) {
 如果查找成功, 则将所在结点地址放入 np, 将结点内位置序号放入 pos, 并返回 true
 否则, 将 k 应该被插入的结点放入 np, 将结点内应插位置序号放入 pos, 并返回 false
 */
-bool Search(MBtree root, KeyType k, MBtnode **np, int *pos) {
-    MBtnode *p = root, *fp = NULL;
+static bool Search(MBtree root, KeyType k, MBnode **np, int *pos) {
+    MBnode *p = root, *fp = NULL;
     bool found = false;
     int i = 0;
     while (p != NULL && !found) {
@@ -69,12 +70,13 @@ bool Search(MBtree root, KeyType k, MBtnode **np, int *pos) {
     }
 }
 //B 树结点分裂, 返回分裂出的新结点
-static MBtnode *Split(MBtnode *old) {
+static MBnode *Split(MBnode *old) {
     int n = MAX_DEGREE-MIN_DEGREE;
-    MBtnode *new = (MBtnode*)malloc(sizeof(MBtnode));
+    MBnode *new = (MBnode*)malloc(sizeof(MBnode));
     if (new == NULL) {
         return NULL;
     }
+    memset(new, 0, sizeof(MBnode));
     new->keynum = n;
     new->parent = old->parent;
     new->children[0] = old->children[MIN_DEGREE];
@@ -82,7 +84,7 @@ static MBtnode *Split(MBtnode *old) {
         new->children[0]->parent = new;
     }
     old->children[MIN_DEGREE] = NULL;
-    for (int i = 1; i <= n; i++) {
+    for (int i = 1; i <= n; ++i) {
         new->key[i] = old->key[MIN_DEGREE+i];
         new->children[i] = old->children[MIN_DEGREE+i];
         if (new->children[i] != NULL) {
@@ -97,9 +99,9 @@ static MBtnode *Split(MBtnode *old) {
 B 树插入数据(辅助函数)
 在 mbp->key[ipos+1] 处插入 key, 在 mbp->children[ipos+1] 处插入 rp
 */
-static void Insert(MBtnode *mbp, int ipos, KeyType k, MBtnode *rp) {
+static void Insert(MBnode *mbp, int ipos, KeyType k, MBnode *rp) {
     //腾一个空位
-    for (int i = mbp->keynum; i >= ipos+1; i--) {
+    for (int i = mbp->keynum; i >= ipos+1; --i) {
         mbp->key[i+1] = mbp->key[i];
         mbp->children[i+1] = mbp->children[i];
     }
@@ -112,10 +114,11 @@ static void Insert(MBtnode *mbp, int ipos, KeyType k, MBtnode *rp) {
 */
 MBtree InsertMBtree(MBtree *root, KeyType k) {
     if (*root == NULL) {
-        *root = (MBtnode*)malloc(sizeof(MBtnode));
+        *root = (MBnode*)malloc(sizeof(MBnode));
         if (*root == NULL) {
             return NULL;
         }
+        memset(*root, 0, sizeof(MBnode));
         (*root)->key[1] = k;
         (*root)->keynum = 1;
         (*root)->parent = NULL;
@@ -125,8 +128,8 @@ MBtree InsertMBtree(MBtree *root, KeyType k) {
     }
     int i = 0;
     KeyType x = k;
-    MBtnode *q = NULL;
-    MBtnode *ap = NULL;
+    MBnode *q = NULL;
+    MBnode *ap = NULL;
     if (Search(*root, k, &q, &i)) {
         return NULL;
     }
@@ -145,7 +148,11 @@ MBtree InsertMBtree(MBtree *root, KeyType k) {
         }
     }
     if (!finished) { //根结点要分裂, 并产生新根
-        MBtnode *new = (MBtnode*)malloc(sizeof(MBtnode));
+        MBnode *new = (MBnode*)malloc(sizeof(MBnode));
+        if (new == NULL) {
+            return NULL;
+        }
+        memset(new, 0, sizeof(MBnode));
         new->keynum = 1;
         new->parent = NULL;
         new->key[1] = x;
@@ -158,13 +165,13 @@ MBtree InsertMBtree(MBtree *root, KeyType k) {
     return *root;
 }
 
-static MBtnode* SubstitutedKey(MBtnode *s, int pos, int *sk_pos) {
+static MBnode* SubstitutedKey(MBnode *s, int pos, int *sk_pos) {
     if (s->children[0] == NULL) {
         *sk_pos = pos;
         return s;
     }
-    MBtnode *p = s->children[pos-1];
-    MBtnode *fp = NULL;
+    MBnode *p = s->children[pos-1];
+    MBnode *fp = NULL;
     while (p != NULL) {
         fp = p;
         p = p->children[p->keynum];
@@ -174,10 +181,10 @@ static MBtnode* SubstitutedKey(MBtnode *s, int pos, int *sk_pos) {
     return fp;
 }
 // u_pos + 1 == v_pos in default
-static MBtnode* Merge(MBtnode *fn, int u_pos, int v_pos) {
+static MBnode* Merge(MBnode *fn, int u_pos, int v_pos) {
     // merge fn->key[v_pos] and v into u
-    MBtnode *u = fn->children[u_pos];
-    MBtnode *v = fn->children[v_pos];
+    MBnode *u = fn->children[u_pos];
+    MBnode *v = fn->children[v_pos];
     ++(u->keynum);
     u->key[u->keynum] = fn->key[v_pos];
     // move key
@@ -195,7 +202,7 @@ static MBtnode* Merge(MBtnode *fn, int u_pos, int v_pos) {
     u->keynum += v->keynum;
     free(v);
 
-    // shrink fs
+    // shrink fn
     for (int i = v_pos; i < fn->keynum; ++i) {
         fn->key[i] = fn->key[i+1];
         fn->children[i] = fn->children[i+1];
@@ -205,13 +212,13 @@ static MBtnode* Merge(MBtnode *fn, int u_pos, int v_pos) {
 
     return fn;
 }
-static MBtnode* DeleteRecursively(MBtree *root, MBtnode *s) {
+static MBnode* DeleteRecursively(MBtree *root, MBnode *s) {
     // 在左右兄弟中寻找关键字数量大于 MIN_DEGREE-1 的兄弟结点, 进行父子换位法
-    MBtnode *fs = s->parent;
+    MBnode *fs = s->parent;
     if (fs == NULL) {
         return NULL;
     }
-    MBtnode *p = NULL;
+    MBnode *p = NULL;
     int s_pos = -1; // the index of s in fs->children
     int p_pos = -1; // the index of p in fs->children
     for (int i = 0; i <= fs->keynum; ++i) {
@@ -302,6 +309,7 @@ static MBtnode* DeleteRecursively(MBtree *root, MBtnode *s) {
         }
         
     }
+    return fs;
 }
 /*
 max=5, min=3
@@ -322,7 +330,7 @@ MBtree DeleteMBtree(MBtree *root, KeyType k) {
         return NULL;
     }
     int pos = 0; // 大于零
-    MBtnode *s = NULL, *p = NULL, *fp = NULL;
+    MBnode *s = NULL, *p = NULL, *fp = NULL;
     if (!Search(*root, k, &s, &pos)) {
         return NULL;
     }
@@ -330,7 +338,7 @@ MBtree DeleteMBtree(MBtree *root, KeyType k) {
     s = SubstitutedKey(s, pos, &pos);
     // 删除最下层的叶子结点 s 中下标为 pos 的关键字
     // 数据移位
-    for (int i = pos; i < s->keynum; i++) {
+    for (int i = pos; i < s->keynum; ++i) {
         s->key[i] = s->key[i+1];
     }
     --(s->keynum);
@@ -342,8 +350,8 @@ MBtree DeleteMBtree(MBtree *root, KeyType k) {
     return *root;
 }
 
-MBtnode* SearchInMBtree(MBtree root, KeyType k, int *pos) {
-    MBtnode *s;
+MBnode* SearchInMBtree(MBtree root, KeyType k, int *pos) {
+    MBnode *s;
     if (Search(root, k, &s, pos) == false) {
         *pos = -1;
         return NULL;
@@ -470,7 +478,7 @@ void test(void) {
             printf("===== error =====\n");
             printf("insert list:\n");
             for (int j = 0; j < SIZE*2; ++j) {
-                printf("%d ", values[j]);
+                printf("%d ", randlist[j]);
             }
             printf("\ndelete list:\n");
             for (int j = 0; j <= i; ++j) {
@@ -526,10 +534,3 @@ int main(void) {
     // test();
     // demo();
 }
-
-/*
-Insert list: 63 1 33 -33 41 78 -41 3 27 58 92 67 
-Delete list: 27 3 1 67 段错误 (核心已转储)
-63 1 78 3 27 58 92 67
-27 3 1 67
-*/
